@@ -57,7 +57,7 @@ class ImageUploadView(CreateAPIView):
             processed_data = {
                 'count': simplified_results
             }
-
+            os.remove(local_image_path)
             return Response(processed_data, status=status.HTTP_200_OK)
         return response
 
