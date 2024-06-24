@@ -10,6 +10,7 @@ import os
 from django.conf import settings
 from man_counter.settings import MEDIA_ROOT, YOLO_PATH
 import sys
+import cv2
 
 # Load the YOLO model once and reuse it
 def load_yolo_model():
@@ -17,8 +18,8 @@ def load_yolo_model():
         YOLO_PATH,
         device="cpu",
     )
-    model.conf = 0.2  # NMS confidence threshold
-    model.iou = 0.4  # NMS IoU threshold
+    model.conf = 0.5  # NMS confidence threshold
+    model.iou = 0.7  # NMS IoU threshold
     model.classes = [0]
     return model
 
@@ -50,8 +51,13 @@ class ImageUploadView(CreateAPIView):
 
             if not os.path.exists(local_image_path):
                 return Response({'error': 'File not found'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            try:
+                image = cv2.imread(local_image_path)
+                height, width, _ = image.shape
+            except:
+                height, width = 640, 640    
 
-            results = process_image(self.model, local_image_path, size=640)
+            results = process_image(self.model, local_image_path, size=(height, width))
             simplified_results = simplify_results(results)
 
             processed_data = {
