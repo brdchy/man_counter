@@ -18,7 +18,7 @@ def load_yolo_model():
         YOLO_PATH,
         device="cpu",
     )
-    model.conf = 0.5  # NMS confidence threshold
+    model.conf = 0.4  # NMS confidence threshold
     model.iou = 0.7  # NMS IoU threshold
     model.classes = [0]
     return model
