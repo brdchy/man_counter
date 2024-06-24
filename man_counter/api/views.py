@@ -55,7 +55,7 @@ class ImageUploadView(CreateAPIView):
                 image = cv2.imread(local_image_path)
                 height, width, _ = image.shape
             except:
-                height, width = 640, 640    
+                height = width = 640    
 
             results = process_image(self.model, local_image_path, size=(height, width))
             simplified_results = simplify_results(results)
