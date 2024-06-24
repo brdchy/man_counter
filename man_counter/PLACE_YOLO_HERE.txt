@@ -1,0 +1,2 @@
+take yolo from https://drive.google.com/file/d/14d4ujEUF4B1YJXGRSoBg_P4PbxBrvw93/view?usp=sharing and place it here.
+or get it from https://github.com/WongKinYiu/yolov9/releases/download/v0.1/yolov9-e-converted.pt and rename it to yolov9e.pt 
