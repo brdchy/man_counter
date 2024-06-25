@@ -1,0 +1,6 @@
+version: '3.8'
+services:
+  man_counter:
+    build: .
+    ports:
+      - "8080:8000"
