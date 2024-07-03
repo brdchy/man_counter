@@ -11,12 +11,15 @@ from django.conf import settings
 from man_counter.settings import MEDIA_ROOT, YOLO_PATH
 import sys
 import cv2
+import numpy as np
+from io import BytesIO
+import base64
 
 # Load the YOLO model once and reuse it
 def load_yolo_model():
     model = yolov9.load(
         YOLO_PATH,
-        device="cpu",
+        device="0",
     )
     model.conf = 0.4  # NMS confidence threshold
     model.iou = 0.7  # NMS IoU threshold
@@ -58,20 +61,26 @@ class ImageUploadView(CreateAPIView):
                 height = width = 640    
 
             results = process_image(self.model, local_image_path, size=(height, width))
-            simplified_results = simplify_results(results)
+            count, annotated_image = simplify_results(results, image)
+
+            _, img_encoded = cv2.imencode('.jpg', annotated_image)
+            img_base64 = base64.b64encode(img_encoded).decode('utf-8')
 
             processed_data = {
-                'count': simplified_results
+                'count': count,
+                'image': img_base64
             }
             os.remove(local_image_path)
             return Response(processed_data, status=status.HTTP_200_OK)
         return response
 
-def simplify_results(results):
+def simplify_results(results, image):
     # Simplify the results to return only the count of detected people
     count = 0
     for result in results.xyxy:
         for detection in result:
             if int(detection[5]) == 0:  # Assuming class 0 is the person class
                 count += 1
-    return count
+                x1, y1, x2, y2 = map(int, detection[:4])
+                cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    return count, image
