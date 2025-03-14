@@ -70,7 +70,10 @@ class ImageUploadView(CreateAPIView):
                 'count': count,
                 'image': img_base64
             }
+            additional_local_image_path = os.path.join(settings.MEDIA_ROOT,'images', os.path.basename(image_url))
+
             os.remove(local_image_path)
+            os.remove(additional_local_image_path)
             return Response(processed_data, status=status.HTTP_200_OK)
         return response
 
