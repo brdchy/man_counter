@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-k@lsjjwm6ao&j!&8pi%tmkq*(dje9^+#)i9o$380b2u81ozlq8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', '10.61.36.12']
+ALLOWED_HOSTS = ['127.0.0.1', '10.61.36.12', '*']
 
 
 # Application definition
@@ -131,3 +131,30 @@ MEDIA_URL = ''
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 YOLO_PATH = 'yolov9e.pt'
+
+import os
+import requests
+from urllib.parse import urlparse
+
+gdrive_url = 'https://drive.google.com/uc?export=download&id=14d4ujEUF4B1YJXGRSoBg_P4PbxBrvw93'
+github_url = 'https://github.com/WongKinYiu/yolov9/releases/download/v0.1/yolov9-e-converted.pt'
+
+def download_file(url, filename):
+    response = requests.get(url, stream=True)
+    if response.status_code == 200:
+        with open(filename, 'wb') as f:
+            for chunk in response.iter_content(1024):
+                f.write(chunk)
+        print(f"Downloaded: {filename}")
+    else:
+        print(f"Failed to download from {url}")
+
+if not os.path.exists(YOLO_PATH):
+    print(f"{YOLO_PATH} not found. Downloading...")
+    try:
+        download_file(github_url, YOLO_PATH)
+    except Exception as e:
+        print(f"GitHub download failed: {e}. Trying Google Drive...")
+        download_file(gdrive_url, YOLO_PATH)
+else:
+    print(f"{YOLO_PATH} already exists.")
