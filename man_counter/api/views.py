@@ -3,7 +3,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.generics import CreateAPIView
-from .models import Image
 from .serializers import ImageSerializer
 import yolov9
 import os
@@ -19,7 +18,7 @@ import base64
 def load_yolo_model():
     model = yolov9.load(
         YOLO_PATH,
-        device="0",
+        device="cpu",
     )
     model.conf = 0.4  # NMS confidence threshold
     model.iou = 0.7  # NMS IoU threshold
@@ -27,42 +26,36 @@ def load_yolo_model():
     return model
 
 # Process image using the loaded YOLO model
-def process_image(model, path, size):
-    results = model(path, size=size)
+def process_image(model, image, size):
+    results = model(image, size=size)
     return results
 
-class ImageUploadView(CreateAPIView):
-    serializer_class = ImageSerializer
+class ImageUploadView(APIView):
+    def post(self, request, *args, **kwargs):
+        # Проверяем, есть ли файл в запросе
+        if 'image' not in request.FILES:
+            return Response({'error': 'No image file provided'}, status=status.HTTP_400_BAD_REQUEST)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = load_yolo_model()
+        # Получаем файл из запроса
+        image_file = request.FILES['image']
 
-    def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        if response.status_code == status.HTTP_201_CREATED:
-            image_url = response.data['image']
-            local_image_path = os.path.join(settings.MEDIA_ROOT, os.path.basename(image_url))
+        try:
+            # Чтение изображения из файла
+            image_data = image_file.read()
+            image_array = np.asarray(bytearray(image_data), dtype=np.uint8)
+            image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
-            # Download the image from the URL to the local path
-            response = requests.get(image_url)
-            if response.status_code == 200:
-                with open(local_image_path, 'wb') as f:
-                    f.write(response.content)
-            else:
-                return Response({'error': 'Failed to download image'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if image is None:
+                return Response({'error': 'Invalid image file'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not os.path.exists(local_image_path):
-                return Response({'error': 'File not found'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            try:
-                image = cv2.imread(local_image_path)
-                height, width, _ = image.shape
-            except:
-                height = width = 640    
+            height, width, _ = image.shape
 
-            results = process_image(self.model, local_image_path, size=(height, width))
+            # Обработка изображения с помощью YOLO
+            model = load_yolo_model()
+            results = process_image(model, image, size=(height, width))
             count, annotated_image = simplify_results(results, image)
 
+            # Кодируем обработанное изображение в base64
             _, img_encoded = cv2.imencode('.jpg', annotated_image)
             img_base64 = base64.b64encode(img_encoded).decode('utf-8')
 
@@ -70,12 +63,10 @@ class ImageUploadView(CreateAPIView):
                 'count': count,
                 'image': img_base64
             }
-            additional_local_image_path = os.path.join(settings.MEDIA_ROOT,'images', os.path.basename(image_url))
 
-            os.remove(local_image_path)
-            os.remove(additional_local_image_path)
             return Response(processed_data, status=status.HTTP_200_OK)
-        return response
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 def simplify_results(results, image):
     # Simplify the results to return only the count of detected people
